@@ -2,6 +2,7 @@
 
 use super::TaskContext;
 
+
 /// The task control block (TCB) of a task.
 #[derive(Copy, Clone)]
 pub struct TaskControlBlock {
@@ -9,6 +10,8 @@ pub struct TaskControlBlock {
     pub task_status: TaskStatus,
     /// The task context
     pub task_cx: TaskContext,
+    /// The task execution count
+    pub syscall_count: usize,
 }
 
 /// The status of a task
