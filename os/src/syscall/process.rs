@@ -1,16 +1,27 @@
 //! Process management syscalls
 use crate::{
-    task::{exit_current_and_run_next, suspend_current_and_run_next},
+    config::MAX_SYSCALL_NUM,
+    task::{exit_current_and_run_next, suspend_current_and_run_next, TaskStatus, TASK_MANAGER},
     timer::get_time_us,
 };
 
-use crate::task::TASK_MANAGER;
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct TimeVal {
     pub sec: usize,
     pub usec: usize,
+}
+
+/// Task information
+#[allow(dead_code)]
+pub struct TaskInfo {
+    /// Task status in it's life cycle
+    status: TaskStatus,
+    /// The numbers of syscall called by task
+    syscall_times: [u32; MAX_SYSCALL_NUM],
+    /// Total running time of task
+    time: usize,
 }
 
 /// task exits and submit an exit code
@@ -40,34 +51,27 @@ pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     0
 }
 
-use core::ptr::{read_volatile, write_volatile};
-
-
 // TODO: implement the syscall
 pub fn sys_trace(trace_request: usize, id: usize, data: usize) -> isize {
-    trace!("kernel: string from task trace test");
     match trace_request {
         0 => {
-            let ptr = id as *const u8;
-            unsafe {
-                let val = read_volatile(ptr);
-                val as isize
-            }
+            let data_ptr = id as *const u8;
+            unsafe { *data_ptr as isize }
         }
         1 => {
-            let ptr = id as *mut u8;
-            let val = (data & 0xFF) as u8;
-            unsafe {
-                write_volatile(ptr, val);
-            }
+            let data_ptr = id as *mut u8;
+            unsafe { *data_ptr = data as u8 };
             0
         }
         2 => {
-            let current_syscall_count = TASK_MANAGER.inner.exclusive_access().tasks[id].syscall_count;
-            current_syscall_count as isize
+            let task = TASK_MANAGER.current_task();
+
+            let info = task.info();
+
+            info.syscall_times[id] as isize
         }
         _ => {
-            trace!("kernel: Test trace");
+            trace!("Unsupported trace request: {}", trace_request);
             -1
         }
     }
